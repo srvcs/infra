@@ -94,3 +94,5 @@ jobs:
               --title "promote(www): deploy ${short_sha}" \
               --body-file "$body_file"
           fi
+
+          gh workflow run validate.yml --ref "$branch"
