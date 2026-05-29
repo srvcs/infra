@@ -61,6 +61,7 @@ Set these in the `srvcs/infra` GitHub repository before running deployment:
 | `TF_STATE_SECRET_ACCESS_KEY` | Secret key for the Terraform state backend |
 | `GHCR_READ_USERNAME` | Optional GHCR pull username if the package is private |
 | `GHCR_READ_TOKEN` | Optional GHCR read token if the package is private |
+| `SRVCS_BOT_TOKEN` | Optional token for commenting preview URLs back on `srvcs/www` PRs |
 
 `TF_BACKEND_CONFIG_B64` should contain a backend config matching
 `terraform/prod/cloudflare/backend.hcl.example`.
@@ -92,3 +93,37 @@ The service image is pinned in two places and validation requires them to match:
 - `k8s/prod/services/www/deployment.yaml`
 
 Update both through a promotion commit.
+
+## Promotion PRs
+
+`srvcs/www` can request a production promotion after its main-branch image is
+published. The request dispatches `Promote www` in this repository. Infra then
+updates its own promotion files on a `promote/www-<sha>` branch and opens a PR.
+
+Merging that PR records the desired production image. The production deploy
+workflow remains manual.
+
+## Preview Deployments
+
+Preview deployments are maintainer opt-in. A `srvcs/www` pull request only gets
+a live preview after a maintainer adds the `deploy-preview` label.
+
+The preview flow is:
+
+```text
+srvcs/www PR with deploy-preview
+  -> publish ghcr.io/srvcs/www:pr-<number>-<head-sha>
+  -> dispatch infra Deploy preview
+  -> create namespace srvcs-preview-www-pr-<number>
+  -> serve https://www-pr-<number>.srvcs.cloud
+```
+
+When the PR closes or the label is removed, `srvcs/www` dispatches
+`Destroy preview`, which deletes the preview namespace.
+
+Fork PRs are intentionally skipped. A maintainer can move a reviewed change onto
+a branch inside `srvcs/www` before adding `deploy-preview`.
+
+Terraform manages a proxied `*.srvcs.cloud` wildcard record for preview
+hostnames. Kubernetes still only routes hostnames created by infra's fixed
+preview template.

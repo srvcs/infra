@@ -19,6 +19,12 @@ variable "hostnames" {
   default     = ["srvcs.cloud", "www.srvcs.cloud"]
 }
 
+variable "preview_hostnames" {
+  description = "Wildcard hostnames routed to preview ingress."
+  type        = set(string)
+  default     = ["*.srvcs.cloud"]
+}
+
 variable "proxied" {
   description = "Whether Cloudflare should proxy these records."
   type        = bool

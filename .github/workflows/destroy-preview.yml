@@ -1,0 +1,83 @@
+name: Destroy preview
+
+on:
+  workflow_dispatch:
+    inputs:
+      service:
+        description: Service preview to destroy.
+        required: true
+        type: string
+      pr_number:
+        description: Source pull request number.
+        required: true
+        type: string
+      source_repo:
+        description: Source repository for PR comments.
+        required: true
+        type: string
+        default: srvcs/www
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  destroy:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: preview-${{ inputs.service }}-${{ inputs.pr_number }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v6.0.2
+
+      - name: Validate destroy request
+        env:
+          PREVIEW_SERVICE: ${{ inputs.service }}
+          PREVIEW_PR_NUMBER: ${{ inputs.pr_number }}
+          PREVIEW_SOURCE_REPO: ${{ inputs.source_repo }}
+        run: |
+          set -euo pipefail
+          test "$PREVIEW_SERVICE" = "www"
+          test "$PREVIEW_SOURCE_REPO" = "srvcs/www"
+          printf '%s' "$PREVIEW_PR_NUMBER" | grep -Eq '^[0-9]+$'
+
+      - name: Destroy preview over SSH
+        env:
+          PROD_SSH_HOST: ${{ secrets.PROD_SSH_HOST }}
+          PROD_SSH_USER: ${{ secrets.PROD_SSH_USER }}
+          PROD_SSH_KEY: ${{ secrets.PROD_SSH_KEY }}
+          PREVIEW_SERVICE: ${{ inputs.service }}
+          PREVIEW_PR_NUMBER: ${{ inputs.pr_number }}
+        run: ./scripts/destroy-preview-over-ssh.sh
+
+      - name: Comment preview teardown
+        env:
+          GH_TOKEN: ${{ secrets.SRVCS_BOT_TOKEN }}
+          PREVIEW_SERVICE: ${{ inputs.service }}
+          PREVIEW_PR_NUMBER: ${{ inputs.pr_number }}
+          PREVIEW_SOURCE_REPO: ${{ inputs.source_repo }}
+        run: |
+          set -euo pipefail
+          if [ -z "${GH_TOKEN:-}" ]; then
+            echo "::notice::SRVCS_BOT_TOKEN is not set; skipping PR comment."
+            exit 0
+          fi
+
+          marker="<!-- srvcs-preview:${PREVIEW_SERVICE}:${PREVIEW_PR_NUMBER} -->"
+          body_file=$(mktemp)
+          {
+            printf '%s\n\n' "$marker"
+            printf 'Preview deployment has been destroyed.\n'
+          } >"$body_file"
+
+          comment_id=$(gh api "repos/${PREVIEW_SOURCE_REPO}/issues/${PREVIEW_PR_NUMBER}/comments" --paginate \
+            --jq ".[] | select(.body | contains(\"${marker}\")) | .id" | tail -1)
+          body=$(cat "$body_file")
+
+          if [ -n "$comment_id" ]; then
+            gh api --method PATCH "repos/${PREVIEW_SOURCE_REPO}/issues/comments/${comment_id}" --field body="$body" >/dev/null
+          else
+            gh api --method POST "repos/${PREVIEW_SOURCE_REPO}/issues/${PREVIEW_PR_NUMBER}/comments" --field body="$body" >/dev/null
+          fi

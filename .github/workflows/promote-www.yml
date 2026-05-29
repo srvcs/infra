@@ -1,0 +1,86 @@
+name: Promote www
+
+on:
+  workflow_dispatch:
+    inputs:
+      image:
+        description: Published www image to promote.
+        required: true
+        type: string
+      source_repo:
+        description: Source repository.
+        required: true
+        type: string
+        default: srvcs/www
+      source_sha:
+        description: Source commit SHA.
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  open-promotion-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6.0.2
+
+      - name: Open promotion PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PROMOTION_IMAGE: ${{ inputs.image }}
+          PROMOTION_SOURCE_REPO: ${{ inputs.source_repo }}
+          PROMOTION_SOURCE_SHA: ${{ inputs.source_sha }}
+        run: |
+          set -euo pipefail
+
+          test "$PROMOTION_SOURCE_REPO" = "srvcs/www"
+          printf '%s' "$PROMOTION_SOURCE_SHA" | grep -Eq '^[0-9a-f]{40}$'
+          test "$PROMOTION_IMAGE" = "ghcr.io/srvcs/www:${PROMOTION_SOURCE_SHA}"
+
+          short_sha=${PROMOTION_SOURCE_SHA:0:7}
+          branch="promote/www-${short_sha}"
+
+          git config user.name "srvcs promotion robot"
+          git config user.email "actions@github.com"
+          git checkout -B "$branch"
+
+          sed -i "s#^\\([[:space:]]*image: \\).*#\\1${PROMOTION_IMAGE}#" promotions/prod/www.yaml
+          sed -i "s#^\\([[:space:]]*sourceCommit: \\).*#\\1${PROMOTION_SOURCE_SHA}#" promotions/prod/www.yaml
+          sed -i "s#^\\([[:space:]]*image: \\).*#\\1${PROMOTION_IMAGE}#" k8s/prod/services/www/deployment.yaml
+
+          ./scripts/validate-control-plane.sh
+
+          if git diff --quiet; then
+            echo "Production already points at ${PROMOTION_IMAGE}."
+            exit 0
+          fi
+
+          git add promotions/prod/www.yaml k8s/prod/services/www/deployment.yaml
+          git commit -m "promote(www): deploy ${short_sha}"
+          git push --force-with-lease origin "$branch"
+
+          body_file=$(mktemp)
+          {
+            printf 'Promotes `www` to `%s`.\n\n' "$PROMOTION_IMAGE"
+            printf 'Source: `%s@%s`\n\n' "$PROMOTION_SOURCE_REPO" "$PROMOTION_SOURCE_SHA"
+            printf 'After merge, run **Deploy production** to reconcile Cloudflare and Kubernetes.\n'
+          } >"$body_file"
+
+          pr_number=$(gh pr list --head "$branch" --json number --jq '.[0].number // empty')
+          if [ -n "$pr_number" ]; then
+            gh pr edit "$pr_number" \
+              --title "promote(www): deploy ${short_sha}" \
+              --body-file "$body_file"
+          else
+            gh pr create \
+              --base main \
+              --head "$branch" \
+              --title "promote(www): deploy ${short_sha}" \
+              --body-file "$body_file"
+          fi

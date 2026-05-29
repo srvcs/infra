@@ -18,3 +18,16 @@ only the services that have a reason to consume runtime.
 
 `www` is promoted because `srvcs.cloud` needs a public website. This does not
 create a general right for every service to be deployed.
+
+## Preview Rules
+
+Preview runtime is also allocated by infra, not by service repositories.
+
+1. A preview must be requested through an infra workflow.
+2. The source PR must carry the `deploy-preview` maintainer label.
+3. The source image must use the approved preview tag shape:
+   `ghcr.io/srvcs/www:pr-<number>-<sha>`.
+4. The preview namespace, hostname, ports, probes, security context, and resource
+   limits are derived by infra. PR authors do not provide Kubernetes manifests.
+5. Preview namespaces are deleted when the source PR closes or the
+   `deploy-preview` label is removed.
