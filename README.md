@@ -28,7 +28,7 @@ Current production promotions:
 
 | Service | Image | Domains |
 | --- | --- | --- |
-| `www` | `ghcr.io/srvcs/www:ec85204437e861022c3a492006917d996d4d6ba1` | `srvcs.cloud`, `www.srvcs.cloud` |
+| `www` | `ghcr.io/srvcs/www:9e96e0234c645802dd7b7a7446317d053368286f` | `srvcs.cloud`, `www.srvcs.cloud` |
 
 ## Production Shape
 
@@ -61,7 +61,7 @@ Set these in the `srvcs/infra` GitHub repository before running deployment:
 | `TF_STATE_SECRET_ACCESS_KEY` | Secret key for the Terraform state backend |
 | `GHCR_READ_USERNAME` | Optional GHCR pull username if the package is private |
 | `GHCR_READ_TOKEN` | Optional GHCR read token if the package is private |
-| `SRVCS_BOT_TOKEN` | Optional token for commenting preview URLs back on `srvcs/www` PRs |
+| `SRVCS_BOT_TOKEN` | Token used to open promotion PRs, dispatch preview teardown/deploy, and comment preview URLs |
 
 `TF_BACKEND_CONFIG_B64` should contain a backend config matching
 `terraform/prod/cloudflare/backend.hcl.example`.
@@ -76,7 +76,7 @@ terraform -chdir=terraform/prod/cloudflare validate
 kubectl kustomize k8s/prod >/tmp/srvcs-prod.yaml
 ```
 
-## Deployment
+## Production Deployment
 
 The deploy workflow is manual by design:
 
@@ -94,32 +94,35 @@ The service image is pinned in two places and validation requires them to match:
 
 Update both through a promotion commit.
 
-## Promotion PRs
+## Website Preview Workflow
 
-`srvcs/www` can request a production promotion after its main-branch image is
-published. The request dispatches `Promote www` in this repository. Infra then
-updates its own promotion files on a `promote/www-<sha>` branch and opens a PR.
+Previews are for maintainer-reviewed `srvcs/www` pull requests. They are not
+created for every PR automatically.
 
-Merging that PR records the desired production image. The production deploy
-workflow remains manual.
+1. Open a PR in `srvcs/www` from a branch inside the same repository.
+2. Add the `deploy-preview` label.
+3. The `srvcs/www` preview workflow builds, tests, and publishes:
 
-## Preview Deployments
+   ```text
+   ghcr.io/srvcs/www:pr-<number>-<head-sha>
+   ```
 
-Preview deployments are maintainer opt-in. A `srvcs/www` pull request only gets
-a live preview after a maintainer adds the `deploy-preview` label.
+4. `srvcs/www` dispatches `Deploy preview` in this repository.
+5. `srvcs/infra` validates the request, deploys a fixed Kubernetes template,
+   and comments the preview URL on the source PR:
 
-The preview flow is:
+   ```text
+   https://www-pr-<number>.srvcs.cloud
+   ```
+
+6. Removing the `deploy-preview` label or closing the PR dispatches
+   `Destroy preview`, which deletes the preview namespace.
+
+Preview namespaces are named:
 
 ```text
-srvcs/www PR with deploy-preview
-  -> publish ghcr.io/srvcs/www:pr-<number>-<head-sha>
-  -> dispatch infra Deploy preview
-  -> create namespace srvcs-preview-www-pr-<number>
-  -> serve https://www-pr-<number>.srvcs.cloud
+srvcs-preview-www-pr-<number>
 ```
-
-When the PR closes or the label is removed, `srvcs/www` dispatches
-`Destroy preview`, which deletes the preview namespace.
 
 Fork PRs are intentionally skipped. A maintainer can move a reviewed change onto
 a branch inside `srvcs/www` before adding `deploy-preview`.
@@ -127,3 +130,32 @@ a branch inside `srvcs/www` before adding `deploy-preview`.
 Terraform manages a proxied `*.srvcs.cloud` wildcard record for preview
 hostnames. Kubernetes still only routes hostnames created by infra's fixed
 preview template.
+
+## Website Production Promotion
+
+`srvcs/www` can request a production promotion after its main-branch image is
+published.
+
+1. Merge the application PR in `srvcs/www`.
+2. `srvcs/www` CI builds, tests, and publishes:
+
+   ```text
+   ghcr.io/srvcs/www:<main-commit-sha>
+   ```
+
+3. `srvcs/www` dispatches `Promote www` in this repository.
+4. `srvcs/infra` updates its own promotion files on a `promote/www-<sha>` branch,
+   opens or updates a PR, and runs validation for that branch.
+5. Merge the infra promotion PR.
+6. Run the manual production deploy workflow:
+
+   ```sh
+   gh workflow run deploy-prod.yml --repo srvcs/infra --ref main
+   ```
+
+The deploy applies Terraform, applies Kubernetes manifests, and waits for the
+`srvcs-www` rollout. Merging the promotion PR records desired state; running
+`Deploy production` reconciles live state.
+
+Do not point production at `latest`. Production promotions must pin an immutable
+image tag or digest.
