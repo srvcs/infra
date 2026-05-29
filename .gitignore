@@ -1,4 +1,5 @@
 .terraform/
+.secrets/
 *.tfstate
 *.tfstate.*
 *.tfplan
