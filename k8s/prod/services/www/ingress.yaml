@@ -33,3 +33,44 @@ spec:
                 name: srvcs-www
                 port:
                   name: http
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: srvcs-www-secure
+  namespace: srvcs-prod
+  labels:
+    app.kubernetes.io/name: srvcs-www
+    app.kubernetes.io/part-of: srvcs
+    srvcs.cloud/service: www
+  annotations:
+    kubernetes.io/ingress.class: traefik
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - srvcs.cloud
+        - www.srvcs.cloud
+  rules:
+    - host: srvcs.cloud
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: srvcs-www
+                port:
+                  name: http
+    - host: www.srvcs.cloud
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: srvcs-www
+                port:
+                  name: http
