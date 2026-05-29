@@ -5,8 +5,8 @@ metadata:
 spec:
   service: www
   environment: prod
-  image: ghcr.io/srvcs/www:9e96e0234c645802dd7b7a7446317d053368286f
-  sourceCommit: 9e96e0234c645802dd7b7a7446317d053368286f
+  image: ghcr.io/srvcs/www:c649cc5eaf5cdb7b2b771bf3c0cf05f1d1d17bd1
+  sourceCommit: c649cc5eaf5cdb7b2b771bf3c0cf05f1d1d17bd1
   domains:
     - srvcs.cloud
     - www.srvcs.cloud
