@@ -48,6 +48,9 @@ jobs:
 
           git config user.name "srvcs promotion robot"
           git config user.email "actions@github.com"
+          if [ -n "${SRVCS_BOT_TOKEN:-}" ]; then
+            git remote set-url origin "https://x-access-token:${SRVCS_BOT_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          fi
           git checkout -B "$branch"
 
           sed -i "s#^\\([[:space:]]*image: \\).*#\\1${PROMOTION_IMAGE}#" promotions/prod/www.yaml
