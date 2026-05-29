@@ -63,6 +63,7 @@ jobs:
 
           git add promotions/prod/www.yaml k8s/prod/services/www/deployment.yaml
           git commit -m "promote(www): deploy ${short_sha}"
+          git fetch origin "$branch":"refs/remotes/origin/$branch" || true
           git push --force-with-lease origin "$branch"
 
           body_file=$(mktemp)
