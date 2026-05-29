@@ -39,7 +39,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: srvcs-www
-          image: ghcr.io/srvcs/www:ec85204437e861022c3a492006917d996d4d6ba1
+          image: ghcr.io/srvcs/www:9e96e0234c645802dd7b7a7446317d053368286f
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
