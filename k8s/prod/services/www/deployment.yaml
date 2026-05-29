@@ -30,8 +30,6 @@ spec:
         prometheus.io/port: "8080"
     spec:
       serviceAccountName: srvcs-www
-      imagePullSecrets:
-        - name: ghcr-pull
       securityContext:
         runAsNonRoot: true
         runAsUser: 65534
