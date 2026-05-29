@@ -28,7 +28,7 @@ Current production promotions:
 
 | Service | Image | Domains |
 | --- | --- | --- |
-| `www` | `ghcr.io/srvcs/www:9e96e0234c645802dd7b7a7446317d053368286f` | `srvcs.cloud`, `www.srvcs.cloud` |
+| `www` | Pinned in `promotions/prod/www.yaml` | `srvcs.cloud`, `www.srvcs.cloud` |
 
 ## Production Shape
 
