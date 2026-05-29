@@ -1,12 +1,3 @@
-locals {
-  tags = [
-    "managed-by:terraform",
-    "environment:prod",
-    "system:srvcs",
-    "service:www",
-  ]
-}
-
 resource "cloudflare_dns_record" "www_ingress" {
   for_each = var.hostnames
 
@@ -17,5 +8,4 @@ resource "cloudflare_dns_record" "www_ingress" {
   proxied = var.proxied
   ttl     = 1
   comment = "srvcs production ingress for www"
-  tags    = local.tags
 }
