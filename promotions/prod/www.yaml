@@ -1,0 +1,17 @@
+apiVersion: srvcs.cloud/v1
+kind: ProductionPromotion
+metadata:
+  name: www
+spec:
+  service: www
+  environment: prod
+  image: ghcr.io/srvcs/www:ec85204437e861022c3a492006917d996d4d6ba1
+  sourceCommit: ec85204437e861022c3a492006917d996d4d6ba1
+  domains:
+    - srvcs.cloud
+    - www.srvcs.cloud
+  runtime:
+    cluster: prod
+    namespace: srvcs-prod
+    replicas: 1
+  justification: srvcs.cloud requires a public website.

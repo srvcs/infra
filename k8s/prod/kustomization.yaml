@@ -1,0 +1,6 @@
+resources:
+  - namespace.yaml
+  - services/www/serviceaccount.yaml
+  - services/www/deployment.yaml
+  - services/www/service.yaml
+  - services/www/ingress.yaml

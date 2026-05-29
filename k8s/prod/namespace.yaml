@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: srvcs-prod
+  labels:
+    app.kubernetes.io/part-of: srvcs
+    srvcs.cloud/environment: prod

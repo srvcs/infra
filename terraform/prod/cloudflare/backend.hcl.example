@@ -1,0 +1,13 @@
+bucket = "srvcs-terraform-state"
+key    = "prod/cloudflare/terraform.tfstate"
+region = "auto"
+
+endpoints = {
+  s3 = "https://REPLACE_WITH_CLOUDFLARE_ACCOUNT_ID.r2.cloudflarestorage.com"
+}
+
+skip_credentials_validation = true
+skip_metadata_api_check     = true
+skip_region_validation      = true
+skip_requesting_account_id  = true
+use_path_style              = true

@@ -1,0 +1,18 @@
+apiVersion: srvcs.cloud/v1
+kind: Service
+metadata:
+  name: www
+  repository: srvcs/www
+spec:
+  image: ghcr.io/srvcs/www
+  port: 8080
+  endpoints:
+    healthz: /healthz
+    readyz: /readyz
+    metrics: /metrics
+    openapi: /openapi.json
+  public:
+    domains:
+      - srvcs.cloud
+      - www.srvcs.cloud
+  status: deployable

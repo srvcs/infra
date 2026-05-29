@@ -1,0 +1,39 @@
+name: Validate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6.0.2
+
+      - name: Validate control plane catalog and promotions
+        run: ./scripts/validate-control-plane.sh
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform fmt
+        run: terraform -chdir=terraform/prod/cloudflare fmt -check
+
+      - name: Terraform validate
+        run: |
+          terraform -chdir=terraform/prod/cloudflare init -backend=false
+          terraform -chdir=terraform/prod/cloudflare validate
+
+      - name: Install kubectl
+        run: |
+          set -euo pipefail
+          version="$(curl -fsSL https://dl.k8s.io/release/stable.txt)"
+          curl -fsSLo kubectl "https://dl.k8s.io/release/${version}/bin/linux/amd64/kubectl"
+          chmod +x kubectl
+          sudo mv kubectl /usr/local/bin/kubectl
+
+      - name: Render Kubernetes manifests
+        run: kubectl kustomize k8s/prod >/tmp/srvcs-prod.yaml

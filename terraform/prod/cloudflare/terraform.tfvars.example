@@ -1,0 +1,4 @@
+cloudflare_zone_id = "REPLACE_WITH_CLOUDFLARE_ZONE_ID"
+origin_ipv4        = "203.0.113.10"
+hostnames          = ["srvcs.cloud", "www.srvcs.cloud"]
+proxied            = true

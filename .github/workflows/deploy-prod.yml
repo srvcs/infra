@@ -1,0 +1,47 @@
+name: Deploy production
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: prod
+    steps:
+      - uses: actions/checkout@v6.0.2
+
+      - name: Validate control plane catalog and promotions
+        run: ./scripts/validate-control-plane.sh
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform apply Cloudflare DNS
+        working-directory: terraform/prod/cloudflare
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          TF_VAR_cloudflare_zone_id: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+          TF_VAR_origin_ipv4: ${{ secrets.PROD_ORIGIN_IPV4 }}
+          TF_BACKEND_CONFIG_B64: ${{ secrets.TF_BACKEND_CONFIG_B64 }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.TF_STATE_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.TF_STATE_SECRET_ACCESS_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$TF_VAR_cloudflare_zone_id"
+          test -n "$TF_VAR_origin_ipv4"
+          test -n "$TF_BACKEND_CONFIG_B64"
+          printf '%s' "$TF_BACKEND_CONFIG_B64" | base64 -d >backend.hcl
+          terraform init -backend-config=backend.hcl
+          terraform apply -auto-approve
+
+      - name: Deploy Kubernetes manifests over SSH
+        env:
+          PROD_SSH_HOST: ${{ secrets.PROD_SSH_HOST }}
+          PROD_SSH_USER: ${{ secrets.PROD_SSH_USER }}
+          PROD_SSH_KEY: ${{ secrets.PROD_SSH_KEY }}
+          GHCR_READ_USERNAME: ${{ secrets.GHCR_READ_USERNAME }}
+          GHCR_READ_TOKEN: ${{ secrets.GHCR_READ_TOKEN }}
+        run: ./scripts/deploy-prod-over-ssh.sh
