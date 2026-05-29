@@ -32,7 +32,7 @@ jobs:
 
       - name: Open promotion PR
         env:
-          GH_TOKEN: ${{ github.token }}
+          SRVCS_BOT_TOKEN: ${{ secrets.SRVCS_BOT_TOKEN }}
           PROMOTION_IMAGE: ${{ inputs.image }}
           PROMOTION_SOURCE_REPO: ${{ inputs.source_repo }}
           PROMOTION_SOURCE_SHA: ${{ inputs.source_sha }}
@@ -72,6 +72,12 @@ jobs:
             printf 'After merge, run **Deploy production** to reconcile Cloudflare and Kubernetes.\n'
           } >"$body_file"
 
+          if [ -z "${SRVCS_BOT_TOKEN:-}" ]; then
+            echo "::notice::SRVCS_BOT_TOKEN is not set; pushed ${branch}, but skipped PR creation."
+            exit 0
+          fi
+
+          export GH_TOKEN="$SRVCS_BOT_TOKEN"
           pr_number=$(gh pr list --head "$branch" --json number --jq '.[0].number // empty')
           if [ -n "$pr_number" ]; then
             gh pr edit "$pr_number" \
